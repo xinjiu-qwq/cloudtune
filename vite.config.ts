@@ -1,0 +1,18 @@
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+
+// Vite dev server must not open the browser; Tauri owns the window.
+// Fixed port + strict so Tauri's devUrl always matches.
+export default defineConfig({
+  plugins: [react()],
+  clearScreen: false,
+  server: {
+    port: 1420,
+    strictPort: true,
+  },
+  envPrefix: ["VITE_", "TAURI_ENV_"],
+  build: {
+    target: "esnext",
+    outDir: "dist",
+  },
+});
