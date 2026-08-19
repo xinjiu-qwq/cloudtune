@@ -23,7 +23,7 @@ const navItems = [
 export type NavKey = (typeof navItems)[number]["key"];
 
 interface AppSidebarProps {
-  active: NavKey;
+  active: NavKey | null;
   onNavigate: (key: NavKey) => void;
 }
 

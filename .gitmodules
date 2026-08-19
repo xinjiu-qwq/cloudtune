@@ -1,0 +1,3 @@
+[submodule "vendor/api-enhanced"]
+	path = vendor/api-enhanced
+	url = https://github.com/NeteaseCloudMusicApiEnhanced/api-enhanced.git

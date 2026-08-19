@@ -1,3 +1,4 @@
+import { useState } from "react";
 import Box from "@mui/material/Box";
 import TextField from "@mui/material/TextField";
 import InputAdornment from "@mui/material/InputAdornment";
@@ -5,8 +6,16 @@ import IconButton from "@mui/material/IconButton";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import AccountCircleOutlinedIcon from "@mui/icons-material/AccountCircleOutlined";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 
-export default function TopBar() {
+interface TopBarProps {
+  onSearch: (query: string) => void;
+  onBack?: () => void;
+}
+
+export default function TopBar({ onSearch, onBack }: TopBarProps) {
+  const [value, setValue] = useState("");
+
   return (
     <Box
       sx={{
@@ -19,9 +28,19 @@ export default function TopBar() {
         borderColor: "divider",
       }}
     >
+      {onBack && (
+        <IconButton onClick={onBack} aria-label="返回">
+          <ArrowBackIcon />
+        </IconButton>
+      )}
       <TextField
         size="small"
-        placeholder="搜索音乐、歌手、歌单"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && value.trim()) onSearch(value.trim());
+        }}
+        placeholder="搜索音乐、歌手（回车搜索）"
         sx={{ width: 320 }}
         slotProps={{
           input: {

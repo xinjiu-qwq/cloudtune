@@ -6,3 +6,4 @@ src-tauri/target
 
 app-icon.png
 app-icon.svg
+src-tauri/gen

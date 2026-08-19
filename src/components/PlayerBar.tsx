@@ -2,42 +2,40 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
 import Slider from "@mui/material/Slider";
+import CircularProgress from "@mui/material/CircularProgress";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
+import PauseIcon from "@mui/icons-material/Pause";
 import SkipPreviousIcon from "@mui/icons-material/SkipPrevious";
 import SkipNextIcon from "@mui/icons-material/SkipNext";
-import ShuffleOutlinedIcon from "@mui/icons-material/ShuffleOutlined";
 import RepeatOutlinedIcon from "@mui/icons-material/RepeatOutlined";
+import RepeatOneOutlinedIcon from "@mui/icons-material/RepeatOneOutlined";
 import QueueMusicOutlinedIcon from "@mui/icons-material/QueueMusicOutlined";
 import VolumeUpOutlinedIcon from "@mui/icons-material/VolumeUpOutlined";
 import LyricsOutlinedIcon from "@mui/icons-material/LyricsOutlined";
-import { coverGradient, formatDuration, nowPlaying } from "../data/mock";
-
-/**
- * M1 playback is simulated: position advances on a timer so the UI feels live.
- * M2 replaces this with the real audio element and Media Session API.
- */
-import { useEffect, useRef, useState } from "react";
+import { usePlayer } from "../stores/playerStore";
+import { formatDuration } from "../data/mock";
 
 interface PlayerBarProps {
   onOpenLyrics: () => void;
 }
 
 export default function PlayerBar({ onOpenLyrics }: PlayerBarProps) {
-  const [positionMs, setPositionMs] = useState(38_000);
-  const [playing, setPlaying] = useState(true);
-  const timerRef = useRef<number | null>(null);
+  const song = usePlayer((s) => s.queue[s.currentIndex]);
+  const playing = usePlayer((s) => s.playing);
+  const loading = usePlayer((s) => s.loading);
+  const positionMs = usePlayer((s) => s.positionMs);
+  const durationMs = usePlayer((s) => s.durationMs);
+  const repeatMode = usePlayer((s) => s.repeatMode);
+  const error = usePlayer((s) => s.error);
+  const toggle = usePlayer((s) => s.toggle);
+  const next = usePlayer((s) => s.next);
+  const prev = usePlayer((s) => s.prev);
+  const seek = usePlayer((s) => s.seek);
+  const cycleRepeat = usePlayer((s) => s.cycleRepeat);
+  const volume = usePlayer((s) => s.volume);
+  const setVolume = usePlayer((s) => s.setVolume);
 
-  useEffect(() => {
-    if (!playing) return;
-    timerRef.current = window.setInterval(() => {
-      setPositionMs((p) => (p + 1000 > nowPlaying.durationMs ? 0 : p + 1000));
-    }, 1000);
-    return () => {
-      if (timerRef.current !== null) window.clearInterval(timerRef.current);
-    };
-  }, [playing]);
-
-  const progress = (positionMs / nowPlaying.durationMs) * 100;
+  const progress = durationMs > 0 ? (positionMs / durationMs) * 100 : 0;
 
   return (
     <Box
@@ -55,36 +53,39 @@ export default function PlayerBar({ onOpenLyrics }: PlayerBarProps) {
     >
       {/* Track info */}
       <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
-        <Box
-          sx={{
-            width: 52,
-            height: 52,
-            borderRadius: 2,
-            background: coverGradient(4),
-            flexShrink: 0,
-          }}
-        />
-        <Box sx={{ minWidth: 0 }}>
-          <Typography variant="subtitle2" noWrap>
-            {nowPlaying.title}
+        {song ? (
+          <>
+            <Box
+              component="img"
+              src={song.al.picUrl}
+              alt={song.name}
+              sx={{ width: 52, height: 52, borderRadius: 2, objectFit: "cover", flexShrink: 0, bgcolor: "action.hover" }}
+            />
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="subtitle2" noWrap>
+                {song.name}
+              </Typography>
+              <Typography variant="caption" color={error ? "error.main" : "text.secondary"} noWrap>
+                {error ?? song.ar.map((a) => a.name).join(" / ")}
+              </Typography>
+            </Box>
+          </>
+        ) : (
+          <Typography variant="caption" color="text.secondary">
+            未在播放 — 从首页或搜索中挑一首
           </Typography>
-          <Typography variant="caption" color="text.secondary" noWrap>
-            {nowPlaying.artist}
-          </Typography>
-        </Box>
+        )}
       </Box>
 
       {/* Transport */}
       <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0.25 }}>
         <Box sx={{ display: "flex", alignItems: "center" }}>
-          <IconButton size="small" sx={{ color: "text.secondary" }} aria-label="随机播放">
-            <ShuffleOutlinedIcon fontSize="small" />
-          </IconButton>
-          <IconButton aria-label="上一首">
+          <IconButton aria-label="上一首" onClick={() => void prev()}>
             <SkipPreviousIcon />
           </IconButton>
           <IconButton
-            onClick={() => setPlaying((v) => !v)}
+            onClick={toggle}
+            disabled={!song || loading}
             aria-label={playing ? "暂停" : "播放"}
             sx={{
               bgcolor: "primary.main",
@@ -95,43 +96,61 @@ export default function PlayerBar({ onOpenLyrics }: PlayerBarProps) {
               "&:hover": { bgcolor: "primary.main" },
             }}
           >
-            <PlayArrowIcon sx={{ transform: playing ? "none" : undefined }} />
+            {loading ? (
+              <CircularProgress size={20} sx={{ color: "primary.contrastText" }} />
+            ) : playing ? (
+              <PauseIcon />
+            ) : (
+              <PlayArrowIcon />
+            )}
           </IconButton>
-          <IconButton aria-label="下一首">
+          <IconButton aria-label="下一首" onClick={() => void next()}>
             <SkipNextIcon />
           </IconButton>
-          <IconButton size="small" sx={{ color: "text.secondary" }} aria-label="循环播放">
-            <RepeatOutlinedIcon fontSize="small" />
+          <IconButton
+            size="small"
+            sx={{ color: repeatMode === "off" ? "text.secondary" : "primary.main", ml: 0.5 }}
+            onClick={cycleRepeat}
+            aria-label="循环模式"
+          >
+            {repeatMode === "one" ? <RepeatOneOutlinedIcon fontSize="small" /> : <RepeatOutlinedIcon fontSize="small" />}
           </IconButton>
         </Box>
         <Box sx={{ display: "flex", alignItems: "center", width: 1, maxWidth: 520, gap: 1 }}>
-          <Typography variant="caption" color="text.secondary" sx={{ width: 36, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
+          <Typography variant="caption" color="text.secondary" sx={{ width: 40, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
             {formatDuration(positionMs)}
           </Typography>
           <Slider
             size="small"
             value={progress}
-            onChange={(_, v) =>
-              setPositionMs(Math.round(((v as number) / 100) * nowPlaying.durationMs))
-            }
+            min={0}
+            max={100}
+            disabled={!song || durationMs === 0}
+            onChange={(_, v) => seek(Math.round(((v as number) / 100) * durationMs))}
             aria-label="播放进度"
           />
-          <Typography variant="caption" color="text.secondary" sx={{ width: 36, fontVariantNumeric: "tabular-nums" }}>
-            {formatDuration(nowPlaying.durationMs)}
+          <Typography variant="caption" color="text.secondary" sx={{ width: 40, fontVariantNumeric: "tabular-nums" }}>
+            {formatDuration(durationMs)}
           </Typography>
         </Box>
       </Box>
 
       {/* Right controls */}
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.25 }}>
-        <IconButton aria-label="打开歌词页" onClick={onOpenLyrics}>
+        <IconButton aria-label="打开歌词页" onClick={onOpenLyrics} disabled={!song}>
           <LyricsOutlinedIcon />
         </IconButton>
-        <IconButton aria-label="播放队列">
+        <IconButton aria-label="播放队列" disabled={!song}>
           <QueueMusicOutlinedIcon />
         </IconButton>
         <VolumeUpOutlinedIcon fontSize="small" sx={{ color: "text.secondary", ml: 1, mr: 0.5 }} />
-        <Slider size="small" defaultValue={70} sx={{ width: 96 }} aria-label="音量" />
+        <Slider
+          size="small"
+          value={volume}
+          onChange={(_, v) => setVolume(v as number)}
+          sx={{ width: 96 }}
+          aria-label="音量"
+        />
       </Box>
     </Box>
   );
