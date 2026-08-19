@@ -5,6 +5,14 @@ import type {
   SongDetail,
   SongUrlItem,
 } from "./types";
+import type {
+  QrCheckResponse,
+  QrCreateResponse,
+  QrKeyResponse,
+  UserProfile,
+  UserPlaylistItem,
+} from "./authTypes";
+import { useAuth } from "../stores/authStore";
 
 /**
  * Client for the embedded NeteaseCloudMusicApi-enhanced server.
@@ -20,7 +28,11 @@ export class ApiError extends Error {
 }
 
 async function get<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
+  // Attach the persisted MUSIC_U cookie for authenticated endpoints.
+  const cookie = useAuth.getState().cookie;
+  const sep = path.includes("?") ? "&" : "?";
+  const url = cookie ? `${path}${sep}cookie=${encodeURIComponent(`MUSIC_U=${cookie}`)}` : path;
+  const res = await fetch(`${BASE}${url}`, {
     // The API server is cross-origin; responses include CORS headers.
     credentials: "include",
   });
@@ -63,4 +75,56 @@ export async function fetchSongUrl(id: number, level = "standard"): Promise<Song
 
 export async function fetchLyric(id: number): Promise<LyricResponse> {
   return get<LyricResponse>(`/lyric?id=${id}`);
+}
+
+/* ---------------------------- Auth & user data ---------------------------- */
+
+/** Step 1 of QR login: obtain a unique key. */
+export async function fetchQrKey(): Promise<string> {
+  const ts = Date.now();
+  const j = await get<QrKeyResponse>(`/login/qr/key?timestamp=${ts}`);
+  const key = j.data?.unikey;
+  if (!key) throw new ApiError(j.data?.message ?? "无法获取登录二维码 key", j.code);
+  return key;
+}
+
+/** Step 2: render the QR code (returns a base64 PNG data-url). */
+export async function createQrCode(key: string): Promise<string> {
+  const j = await get<QrCreateResponse>(`/login/qr/create?key=${encodeURIComponent(key)}&qrimg=true`);
+  const img = j.data?.qrimg;
+  if (!img) throw new ApiError("二维码生成失败", j.code);
+  return img;
+}
+
+/** Step 3: poll scan status. code 803 = success, 800 expired, 801/802 pending. */
+export async function checkQrStatus(key: string): Promise<QrCheckResponse> {
+  return get<QrCheckResponse>(`/login/qr/check?key=${encodeURIComponent(key)}&timestamp=${Date.now()}`);
+}
+
+/** Profile of the logged-in user (requires cookie). */
+export async function fetchLoginStatus(): Promise<UserProfile | null> {
+  const j = await get<{ code: number; data?: { profile?: UserProfile } }>(
+    `/login/status?timestamp=${Date.now()}`,
+  );
+  return j.data?.profile ?? null;
+}
+
+export async function fetchLogout(): Promise<void> {
+  await get<{ code: number }>(`/logout?timestamp=${Date.now()}`);
+}
+
+/** The user's own playlists (+ subscribed ones) once logged in. */
+export async function fetchUserPlaylists(uid: number): Promise<UserPlaylistItem[]> {
+  const j = await get<{ code: number; playlist?: UserPlaylistItem[] }>(
+    `/user/playlist?uid=${uid}&limit=100`,
+  );
+  return j.playlist ?? [];
+}
+
+/** Daily personalized song picks; login required. */
+export async function fetchDailySongs(): Promise<SongDetail[]> {
+  const j = await get<{ code: number; data?: { dailySongs?: SongDetail[] } }>(
+    `/recommend/songs?timestamp=${Date.now()}`,
+  );
+  return j.data?.dailySongs ?? [];
 }

@@ -3,9 +3,11 @@ import Typography from "@mui/material/Typography";
 import Skeleton from "@mui/material/Skeleton";
 import Alert from "@mui/material/Alert";
 import { useEffect, useState } from "react";
-import { fetchPersonalized } from "../api/netease";
-import type { PersonalizedPlaylist } from "../api/types";
+import { fetchDailySongs, fetchPersonalized } from "../api/netease";
+import type { PersonalizedPlaylist, SongDetail } from "../api/types";
 import { usePlayer } from "../stores/playerStore";
+import { useAuth } from "../stores/authStore";
+import { formatDuration } from "../data/mock";
 
 function formatPlayCount(n: number): string {
   if (n >= 100_000_000) return `${(n / 100_000_000).toFixed(1)} 亿`;
@@ -20,9 +22,14 @@ interface HomePageProps {
 
 export default function HomePage({ onOpenPlaylist, onPlayPlaylist }: HomePageProps) {
   const [playlists, setPlaylists] = useState<PersonalizedPlaylist[] | null>(null);
+  const [dailySongs, setDailySongs] = useState<SongDetail[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [playingId, setPlayingId] = useState<number | null>(null);
   const playerLoading = usePlayer((s) => s.loading);
+  const authStatus = useAuth((s) => s.status);
+  const currentSongId = usePlayer((s) => s.queue[s.currentIndex]?.id);
+  const playSong = usePlayer((s) => s.playSong);
+  const toggle = usePlayer((s) => s.toggle);
 
   useEffect(() => {
     let cancelled = false;
@@ -33,6 +40,21 @@ export default function HomePage({ onOpenPlaylist, onPlayPlaylist }: HomePagePro
       cancelled = true;
     };
   }, []);
+
+  // Daily picks require login.
+  useEffect(() => {
+    if (authStatus !== "logged_in") {
+      setDailySongs(null);
+      return;
+    }
+    let cancelled = false;
+    fetchDailySongs()
+      .then((r) => !cancelled && setDailySongs(r))
+      .catch(() => !cancelled && setDailySongs([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [authStatus]);
 
   async function quickPlay(id: number) {
     setPlayingId(id);
@@ -56,6 +78,84 @@ export default function HomePage({ onOpenPlaylist, onPlayPlaylist }: HomePagePro
           请确认本地 API 已启动（cd vendor/api-enhanced &amp;&amp; node app.js），或通过 VITE_API_URL
           指向你的服务地址。
         </Alert>
+      )}
+
+      {authStatus === "logged_in" && (
+        <>
+          <Typography variant="h6" sx={{ mb: 2 }}>
+            每日歌曲推荐
+          </Typography>
+          {dailySongs === null && (
+            <Box sx={{ display: "grid", gap: 1.5, mb: 5 }}>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} height={48} />
+              ))}
+            </Box>
+          )}
+          {dailySongs && dailySongs.length === 0 && (
+            <Alert severity="info" sx={{ mb: 5 }}>
+              暂时无法获取每日推荐（可能需要 VIP 或接口限流）
+            </Alert>
+          )}
+          {dailySongs && dailySongs.length > 0 && (
+            <Box sx={{ mb: 5, borderRadius: 4, overflow: "hidden", bgcolor: "background.paper" }}>
+              {dailySongs.slice(0, 15).map((song, i) => {
+                const active = currentSongId === song.id;
+                return (
+                  <Box
+                    key={song.id}
+                    onClick={() =>
+                      active ? toggle() : void playSong(song, dailySongs)
+                    }
+                    sx={{
+                      display: "grid",
+                      gridTemplateColumns: "40px 56px 1fr 1fr 64px",
+                      alignItems: "center",
+                      gap: 2,
+                      px: 2.5,
+                      py: 1,
+                      cursor: "pointer",
+                      "&:hover": { bgcolor: "action.hover" },
+                      bgcolor: active ? "rgba(255,180,171,.08)" : undefined,
+                    }}
+                  >
+                    <Typography
+                      variant="body2"
+                      sx={{ color: active ? "primary.main" : "text.secondary", fontVariantNumeric: "tabular-nums" }}
+                    >
+                      {active ? "♪" : String(i + 1).padStart(2, "0")}
+                    </Typography>
+                    <Box
+                      component="img"
+                      src={song.al.picUrl}
+                      alt=""
+                      loading="lazy"
+                      sx={{ width: 44, height: 44, borderRadius: 1.5, objectFit: "cover", bgcolor: "action.hover" }}
+                    />
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography variant="subtitle2" noWrap color={active ? "primary.main" : "text.primary"}>
+                        {song.name}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" noWrap>
+                        {song.ar.map((a) => a.name).join(" / ")}
+                      </Typography>
+                    </Box>
+                    <Typography variant="body2" color="text.secondary" noWrap>
+                      {song.al.name}
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}
+                    >
+                      {formatDuration(song.dt)}
+                    </Typography>
+                  </Box>
+                );
+              })}
+            </Box>
+          )}
+        </>
       )}
 
       <Typography variant="h6" sx={{ mb: 2 }}>

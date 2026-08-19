@@ -3,6 +3,7 @@ import Box from "@mui/material/Box";
 import AppSidebar, { type NavKey } from "./components/AppSidebar";
 import TopBar from "./components/TopBar";
 import PlayerBar from "./components/PlayerBar";
+import LoginDialog from "./components/LoginDialog";
 import HomePage from "./pages/HomePage";
 import PlaylistPage from "./pages/PlaylistPage";
 import SearchPage from "./pages/SearchPage";
@@ -21,6 +22,7 @@ export default function App() {
   const [view, setView] = useState<View>({ kind: "home" });
   const [history, setHistory] = useState<View[]>([]);
   const [lyricsOpen, setLyricsOpen] = useState(false);
+  const [loginOpen, setLoginOpen] = useState(false);
 
   function navigate(next: View) {
     setHistory((h) => [...h, view]);
@@ -58,11 +60,13 @@ export default function App() {
         <AppSidebar
           active={view.kind === "home" ? "home" : view.kind === "placeholder" ? view.page : null}
           onNavigate={navigateRoot}
+          onOpenPlaylist={(id) => navigate({ kind: "playlist", id })}
         />
         <Box sx={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
           <TopBar
             onSearch={(q) => navigate({ kind: "search", query: q })}
             onBack={showBack ? goBack : undefined}
+            onLoginClick={() => setLoginOpen(true)}
           />
           <Box sx={{ flex: 1, minHeight: 0, bgcolor: "background.default" }}>
             {view.kind === "home" && (
@@ -76,6 +80,7 @@ export default function App() {
       </Box>
       <PlayerBar onOpenLyrics={() => setLyricsOpen(true)} />
       {lyricsOpen && <LyricsPage onClose={() => setLyricsOpen(false)} />}
+      <LoginDialog open={loginOpen} onClose={() => setLoginOpen(false)} />
     </Box>
   );
 }

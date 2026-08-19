@@ -5,13 +5,17 @@ import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
 import Typography from "@mui/material/Typography";
 import Divider from "@mui/material/Divider";
+import Skeleton from "@mui/material/Skeleton";
 import ExploreOutlinedIcon from "@mui/icons-material/ExploreOutlined";
 import LibraryMusicOutlinedIcon from "@mui/icons-material/LibraryMusicOutlined";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import QueueMusicOutlinedIcon from "@mui/icons-material/QueueMusicOutlined";
 import MusicNoteIcon from "@mui/icons-material/MusicNote";
-import { userPlaylists } from "../data/mock";
+import { useEffect, useState } from "react";
+import { fetchUserPlaylists } from "../api/netease";
+import type { UserPlaylistItem } from "../api/authTypes";
+import { useAuth } from "../stores/authStore";
 
 const navItems = [
   { key: "home", label: "发现音乐", icon: <ExploreOutlinedIcon /> },
@@ -25,9 +29,28 @@ export type NavKey = (typeof navItems)[number]["key"];
 interface AppSidebarProps {
   active: NavKey | null;
   onNavigate: (key: NavKey) => void;
+  onOpenPlaylist: (id: number) => void;
 }
 
-export default function AppSidebar({ active, onNavigate }: AppSidebarProps) {
+export default function AppSidebar({ active, onNavigate, onOpenPlaylist }: AppSidebarProps) {
+  const status = useAuth((s) => s.status);
+  const profile = useAuth((s) => s.profile);
+  const [playlists, setPlaylists] = useState<UserPlaylistItem[] | null>(null);
+
+  useEffect(() => {
+    if (status !== "logged_in" || !profile) {
+      setPlaylists(null);
+      return;
+    }
+    let cancelled = false;
+    fetchUserPlaylists(profile.userId)
+      .then((r) => !cancelled && setPlaylists(r))
+      .catch(() => !cancelled && setPlaylists([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [status, profile]);
+
   return (
     <Box
       component="nav"
@@ -51,8 +74,7 @@ export default function AppSidebar({ active, onNavigate }: AppSidebarProps) {
             borderRadius: 2,
             display: "grid",
             placeItems: "center",
-            background:
-              "linear-gradient(135deg, #c20c0c 0%, #7a1f2b 100%)",
+            background: "linear-gradient(135deg, #c20c0c 0%, #7a1f2b 100%)",
             color: "#fff",
           }}
         >
@@ -88,19 +110,35 @@ export default function AppSidebar({ active, onNavigate }: AppSidebarProps) {
         我的歌单
       </Typography>
       <Box sx={{ overflowY: "auto", flex: 1 }}>
-        <List disablePadding dense>
-          {userPlaylists.map((pl) => (
-            <ListItemButton key={pl.id} sx={{ px: 2 }}>
-              <ListItemIcon sx={{ minWidth: 36, color: "text.secondary" }}>
-                <QueueMusicOutlinedIcon fontSize="small" />
-              </ListItemIcon>
-              <ListItemText
-                primary={pl.name}
-                primaryTypographyProps={{ fontSize: 14, noWrap: true }}
-              />
-            </ListItemButton>
-          ))}
-        </List>
+        {status === "logged_in" && playlists === null && (
+          <Box sx={{ px: 1.5, display: "grid", gap: 1 }}>
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} height={32} />
+            ))}
+          </Box>
+        )}
+
+        {status !== "logged_in" && (
+          <Typography variant="body2" color="text.secondary" sx={{ px: 1.5, py: 1 }}>
+            登录网易云账号后，这里会显示你的歌单
+          </Typography>
+        )}
+
+        {playlists && (
+          <List disablePadding dense>
+            {playlists.map((pl) => (
+              <ListItemButton key={pl.id} sx={{ px: 2 }} onClick={() => onOpenPlaylist(pl.id)}>
+                <ListItemIcon sx={{ minWidth: 36, color: "text.secondary" }}>
+                  <QueueMusicOutlinedIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText
+                  primary={pl.name}
+                  primaryTypographyProps={{ fontSize: 14, noWrap: true }}
+                />
+              </ListItemButton>
+            ))}
+          </List>
+        )}
       </Box>
     </Box>
   );
