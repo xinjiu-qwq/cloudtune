@@ -1,6 +1,6 @@
 [package]
 name = "cloudtune"
-version = "0.1.0"
+version = "1.0.0"
 description = "CloudTune - a third-party NetEase Cloud Music desktop client"
 authors = ["cloudtune"]
 edition = "2021"
