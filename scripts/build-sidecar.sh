@@ -1,6 +1,7 @@
 #!/bin/bash
-# Build api-enhanced sidecar for Tauri
-# Requires: Node.js, npm, and network access to download pkg base binary
+# Build the api-enhanced sidecar binary for Tauri (Windows x64).
+# Requires: Node.js 18+ and network access (pkg fetches a patched Node.js
+# base binary from GitHub releases on first run, cached in ~/.pkg-cache).
 
 set -e
 
@@ -8,31 +9,23 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 API_DIR="$PROJECT_DIR/vendor/api-enhanced"
 OUTPUT_DIR="$PROJECT_DIR/src-tauri/binaries"
-OUTPUT_FILE="$OUTPUT_DIR/api-enhanced-x86_64-pc-windows-msvc.exe"
+TARGET="$OUTPUT_DIR/api-enhanced-x86_64-pc-windows-msvc.exe"
 
 echo "Building api-enhanced sidecar..."
-echo "API directory: $API_DIR"
-echo "Output: $OUTPUT_FILE"
+echo "  source: $API_DIR"
+echo "  target: $TARGET"
 
-# Check if pkg is installed
-if ! npm list -g @yao-pkg/pkg > /dev/null 2>&1; then
-    echo "Installing @yao-pkg/pkg..."
-    npm install -g @yao-pkg/pkg
-fi
-
-# Create output directory
 mkdir -p "$OUTPUT_DIR"
-
-# Build sidecar
 cd "$API_DIR"
-npx pkg . -t node22-win-x64 --fallback-to-source --out-path "$OUTPUT_DIR"
 
-# Rename to Tauri sidecar format
-if [ -f "$API_DIR/api-enhanced.exe" ]; then
-    mv "$API_DIR/api-enhanced.exe" "$OUTPUT_FILE"
-    echo "✓ Sidecar built: $OUTPUT_FILE"
-    ls -lh "$OUTPUT_FILE"
+# pkg output file is named after the package.json bin name: api.exe
+npx --yes -p @yao-pkg/pkg pkg . -t node22-win-x64 --fallback-to-source --out-path "$OUTPUT_DIR"
+
+if [ -f "$API_DIR/api.exe" ]; then
+    mv "$API_DIR/api.exe" "$TARGET"
+    echo "✓ Sidecar built: $TARGET"
+    ls -lh "$TARGET"
 else
-    echo "✗ Build failed: output file not found"
+    echo "✗ Build failed: api.exe not found" >&2
     exit 1
 fi

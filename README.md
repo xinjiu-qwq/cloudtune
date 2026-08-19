@@ -17,6 +17,15 @@
 
 macOS / Linux 版本将在 Windows 版稳定后跟进。
 
+## 下载安装
+
+Windows 安装包见 [Releases](https://github.com/xinjiu-qwq/cloudtune/releases)（v1.0.0 起内嵌 API 服务，安装即用）：
+
+| 文件 | 说明 |
+| --- | --- |
+| `CloudTune_1.0.0_x64-setup.exe` | NSIS 安装向导（推荐，约 41 MB） |
+| `CloudTune_1.0.0_x64_en-US.msi` | MSI 安装包（约 52 MB） |
+
 ## 技术栈
 
 - **前端**：React 19 + TypeScript + Vite 7，MUI v7（Material Design 3 暗色主题），Zustand 状态管理
@@ -56,11 +65,17 @@ API 地址可通过环境变量 `VITE_API_URL` 覆盖，指向你自己部署的
 ## 构建发布（Windows）
 
 ```bash
-npm run tauri build -- --bundles msi,nsis
+# 1. 构建内嵌 API sidecar（首次约 2 分钟，需联网下载 Node.js 基础二进制）
+bash scripts/build-sidecar.sh          # 或 scripts\build-sidecar.bat
+# 产出 src-tauri/binaries/api-enhanced-x86_64-pc-windows-msvc.exe（约 110 MB，已 gitignore）
+
+# 2. 打包应用
+npm run tauri build
 # 产出：src-tauri/target/release/bundle/
-#   msi/CloudTune_0.1.0_x64_en-US.msi   (7.5 MB)
-#   nsis/CloudTune_0.1.0_x64-setup.exe  (6.7 MB)
+#   msi/CloudTune_1.0.0_x64_en-US.msi    (约 52 MB)
+#   nsis/CloudTune_1.0.0_x64-setup.exe   (约 41 MB)
 ```
 
-> 安装包目前不含内嵌 API 服务（M2 阶段采用本地 `npm run api` 直连方案），
-> 分发安装包需同时提供 API 部署指引，详见故障排查文档。
+打包后的应用内嵌 api-enhanced：由 [@yao-pkg/pkg](https://github.com/yao-pkg/pkg) 编译为单文件
+可执行程序（含 Node.js 运行时与全部依赖），作为 Tauri sidecar 随应用启动/退出自动
+拉起/回收，监听 `http://localhost:3000`，用户无需单独部署 API。
