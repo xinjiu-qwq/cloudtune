@@ -1,3 +1,4 @@
+import { useState } from "react";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
@@ -9,15 +10,20 @@ import SkipPreviousIcon from "@mui/icons-material/SkipPrevious";
 import SkipNextIcon from "@mui/icons-material/SkipNext";
 import RepeatOutlinedIcon from "@mui/icons-material/RepeatOutlined";
 import RepeatOneOutlinedIcon from "@mui/icons-material/RepeatOneOutlined";
+import RepeatOnOutlinedIcon from "@mui/icons-material/RepeatOnOutlined";
+import ShuffleOutlinedIcon from "@mui/icons-material/ShuffleOutlined";
 import QueueMusicOutlinedIcon from "@mui/icons-material/QueueMusicOutlined";
 import VolumeUpOutlinedIcon from "@mui/icons-material/VolumeUpOutlined";
 import LyricsOutlinedIcon from "@mui/icons-material/LyricsOutlined";
 import { usePlayer } from "../stores/playerStore";
 import { formatDuration } from "../data/mock";
+import PlayQueueDrawer from "./PlayQueueDrawer";
 
 interface PlayerBarProps {
   onOpenLyrics: () => void;
 }
+
+const COVER_RADIUS = 1.25; // smaller MD radius for covers
 
 export default function PlayerBar({ onOpenLyrics }: PlayerBarProps) {
   const song = usePlayer((s) => s.queue[s.currentIndex]);
@@ -25,15 +31,23 @@ export default function PlayerBar({ onOpenLyrics }: PlayerBarProps) {
   const loading = usePlayer((s) => s.loading);
   const positionMs = usePlayer((s) => s.positionMs);
   const durationMs = usePlayer((s) => s.durationMs);
-  const repeatMode = usePlayer((s) => s.repeatMode);
+  const playMode = usePlayer((s) => s.playMode);
   const error = usePlayer((s) => s.error);
   const toggle = usePlayer((s) => s.toggle);
   const next = usePlayer((s) => s.next);
   const prev = usePlayer((s) => s.prev);
   const seek = usePlayer((s) => s.seek);
-  const cycleRepeat = usePlayer((s) => s.cycleRepeat);
+  const cyclePlayMode = usePlayer((s) => s.cyclePlayMode);
   const volume = usePlayer((s) => s.volume);
   const setVolume = usePlayer((s) => s.setVolume);
+  const [queueOpen, setQueueOpen] = useState(false);
+
+  const modeIcon =
+    playMode === "shuffle" ? <ShuffleOutlinedIcon fontSize="small" /> :
+    playMode === "one" ? <RepeatOneOutlinedIcon fontSize="small" /> :
+    playMode === "all" ? <RepeatOnOutlinedIcon fontSize="small" /> :
+    <RepeatOutlinedIcon fontSize="small" />;
+  const modeLabel = { off: "顺序播放", all: "列表循环", one: "单曲循环", shuffle: "随机播放" }[playMode];
 
   const progress = durationMs > 0 ? (positionMs / durationMs) * 100 : 0;
 
@@ -59,7 +73,18 @@ export default function PlayerBar({ onOpenLyrics }: PlayerBarProps) {
               component="img"
               src={song.al.picUrl}
               alt={song.name}
-              sx={{ width: 52, height: 52, borderRadius: 2, objectFit: "cover", flexShrink: 0, bgcolor: "action.hover" }}
+              onClick={() => onOpenLyrics()}
+              sx={{
+                width: 52,
+                height: 52,
+                borderRadius: COVER_RADIUS,
+                objectFit: "cover",
+                flexShrink: 0,
+                bgcolor: "action.hover",
+                cursor: "pointer",
+                transition: "transform .15s ease",
+                "&:hover": { transform: "scale(1.04)" },
+              }}
             />
             <Box sx={{ minWidth: 0 }}>
               <Typography variant="subtitle2" noWrap>
@@ -109,11 +134,12 @@ export default function PlayerBar({ onOpenLyrics }: PlayerBarProps) {
           </IconButton>
           <IconButton
             size="small"
-            sx={{ color: repeatMode === "off" ? "text.secondary" : "primary.main", ml: 0.5 }}
-            onClick={cycleRepeat}
-            aria-label="循环模式"
+            sx={{ color: playMode === "off" ? "text.secondary" : "primary.main", ml: 0.5 }}
+            onClick={cyclePlayMode}
+            aria-label={modeLabel}
+            title={modeLabel}
           >
-            {repeatMode === "one" ? <RepeatOneOutlinedIcon fontSize="small" /> : <RepeatOutlinedIcon fontSize="small" />}
+            {modeIcon}
           </IconButton>
         </Box>
         <Box sx={{ display: "flex", alignItems: "center", width: 1, maxWidth: 520, gap: 1 }}>
@@ -140,9 +166,10 @@ export default function PlayerBar({ onOpenLyrics }: PlayerBarProps) {
         <IconButton aria-label="打开歌词页" onClick={onOpenLyrics} disabled={!song}>
           <LyricsOutlinedIcon />
         </IconButton>
-        <IconButton aria-label="播放队列" disabled={!song}>
+        <IconButton aria-label="播放队列" onClick={() => setQueueOpen(true)} disabled={!song}>
           <QueueMusicOutlinedIcon />
         </IconButton>
+        <PlayQueueDrawer open={queueOpen} onClose={() => setQueueOpen(false)} />
         <VolumeUpOutlinedIcon fontSize="small" sx={{ color: "text.secondary", ml: 1, mr: 0.5 }} />
         <Slider
           size="small"

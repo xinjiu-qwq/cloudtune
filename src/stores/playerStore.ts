@@ -2,15 +2,17 @@ import { create } from "zustand";
 import type { SongDetail } from "../api/types";
 import { fetchSongUrl } from "../api/netease";
 
-export type RepeatMode = "off" | "all" | "one";
+export type PlayMode = "off" | "all" | "one" | "shuffle";
 
 interface PlayerState {
   queue: SongDetail[];
+  /** Original order before shuffle; used to restore or re-shuffle. */
+  originalQueue: SongDetail[];
   currentIndex: number;
   playing: boolean;
   positionMs: number;
   durationMs: number;
-  repeatMode: RepeatMode;
+  playMode: PlayMode;
   loading: boolean;
   error: string | null;
   playSong: (song: SongDetail, queue?: SongDetail[]) => Promise<void>;
@@ -19,7 +21,7 @@ interface PlayerState {
   next: () => Promise<void>;
   prev: () => Promise<void>;
   seek: (ms: number) => void;
-  cycleRepeat: () => void;
+  cyclePlayMode: () => void;
   volume: number;
   setVolume: (v: number) => void;
 }
@@ -32,6 +34,15 @@ const audio = new Audio();
 audio.preload = "auto";
 audio.volume = 0.7;
 
+function shuffleArray<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 export const usePlayer = create<PlayerState>((set, get) => {
   let lastTimeUpdate = 0;
 
@@ -43,8 +54,8 @@ export const usePlayer = create<PlayerState>((set, get) => {
     set({ positionMs: Math.floor(audio.currentTime * 1000) });
   });
   audio.addEventListener("ended", () => {
-    const { repeatMode } = get();
-    if (repeatMode === "one") {
+    const { playMode } = get();
+    if (playMode === "one") {
       audio.currentTime = 0;
       void audio.play();
       return;
@@ -88,27 +99,44 @@ export const usePlayer = create<PlayerState>((set, get) => {
     navigator.mediaSession.setActionHandler("nexttrack", () => void get().next());
   }
 
+  function buildQueue(songs: SongDetail[], startIndex: number, mode: PlayMode) {
+    if (mode !== "shuffle") {
+      return { queue: songs, originalQueue: songs, currentIndex: startIndex };
+    }
+    const startSong = songs[startIndex];
+    const rest = songs.filter((_, i) => i !== startIndex);
+    const shuffled = shuffleArray(rest);
+    const queue = startSong ? [startSong, ...shuffled] : shuffled;
+    return { queue, originalQueue: songs, currentIndex: 0 };
+  }
+
   return {
     queue: [],
+    originalQueue: [],
     currentIndex: -1,
     playing: false,
     positionMs: 0,
     durationMs: 0,
-    repeatMode: "off",
+    playMode: "all",
     loading: false,
     error: null,
     volume: 70,
 
     async playSong(song, queue) {
-      if (queue) set({ queue, currentIndex: Math.max(0, queue.findIndex((s) => s.id === song.id)) });
-      set({ positionMs: 0 });
+      const mode = get().playMode;
+      if (queue) {
+        const startIndex = Math.max(0, queue.findIndex((s) => s.id === song.id));
+        const next = buildQueue(queue, startIndex, mode);
+        set({ ...next, positionMs: 0 });
+      }
       await startPlayback(song);
     },
 
     async playQueue(songs, startIndex = 0) {
       const song = songs[startIndex];
       if (!song) return;
-      set({ queue: songs, currentIndex: startIndex, positionMs: 0 });
+      const next = buildQueue(songs, startIndex, get().playMode);
+      set({ ...next, positionMs: 0 });
       await startPlayback(song);
     },
 
@@ -119,13 +147,13 @@ export const usePlayer = create<PlayerState>((set, get) => {
     },
 
     async next() {
-      const { queue, currentIndex, repeatMode } = get();
+      const { queue, currentIndex, playMode } = get();
       if (queue.length === 0) return;
-      const nextIndex = (currentIndex + 1) % queue.length;
-      if (nextIndex === 0 && repeatMode === "off" && currentIndex !== 0) {
+      if (playMode === "off" && currentIndex === queue.length - 1) {
         audio.pause();
         return;
       }
+      const nextIndex = (currentIndex + 1) % queue.length;
       set({ currentIndex: nextIndex, positionMs: 0 });
       await startPlayback(queue[nextIndex]);
     },
@@ -143,10 +171,28 @@ export const usePlayer = create<PlayerState>((set, get) => {
       set({ positionMs: ms });
     },
 
-    cycleRepeat() {
-      const order: RepeatMode[] = ["off", "all", "one"];
-      const cur = order.indexOf(get().repeatMode);
-      set({ repeatMode: order[(cur + 1) % order.length] });
+    cyclePlayMode() {
+      const order: PlayMode[] = ["all", "one", "shuffle", "off"];
+      const cur = order.indexOf(get().playMode);
+      const nextMode = order[(cur + 1) % order.length];
+
+      set((state) => {
+        if (nextMode === "shuffle") {
+          const currentSong = state.queue[state.currentIndex];
+          const next = buildQueue(state.originalQueue, Math.max(0, state.originalQueue.findIndex((s) => s.id === currentSong?.id)), nextMode);
+          return { ...next, playMode: nextMode };
+        }
+        if (state.playMode === "shuffle") {
+          const currentSong = state.queue[state.currentIndex];
+          const originalIndex = Math.max(0, state.originalQueue.findIndex((s) => s.id === currentSong?.id));
+          return {
+            queue: state.originalQueue,
+            currentIndex: originalIndex,
+            playMode: nextMode,
+          };
+        }
+        return { playMode: nextMode };
+      });
     },
 
     setVolume(v) {

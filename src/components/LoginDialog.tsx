@@ -13,13 +13,14 @@ type Stage = "loading" | "waiting" | "confirming" | "expired" | "error";
 interface LoginDialogProps {
   open: boolean;
   onClose: () => void;
+  onLogin?: () => void;
 }
 
 /**
  * QR-code login flow against api-enhanced:
  * key -> create(qrimg) -> poll check every 1.5s until code 803.
  */
-export default function LoginDialog({ open, onClose }: LoginDialogProps) {
+export default function LoginDialog({ open, onClose, onLogin }: LoginDialogProps) {
   const [stage, setStage] = useState<Stage>("loading");
   const [qrImg, setQrImg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string>("");
@@ -73,6 +74,7 @@ export default function LoginDialog({ open, onClose }: LoginDialogProps) {
               return;
             }
             setSession(m[1], profile);
+            onLogin?.();
             onClose();
           }
         } catch {

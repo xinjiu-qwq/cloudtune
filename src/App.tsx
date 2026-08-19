@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Box from "@mui/material/Box";
 import AppSidebar, { type NavKey } from "./components/AppSidebar";
 import TopBar from "./components/TopBar";
 import PlayerBar from "./components/PlayerBar";
 import LoginDialog from "./components/LoginDialog";
+import SettingsDialog from "./components/SettingsDialog";
 import HomePage from "./pages/HomePage";
 import PlaylistPage from "./pages/PlaylistPage";
 import SearchPage from "./pages/SearchPage";
@@ -23,6 +24,15 @@ export default function App() {
   const [history, setHistory] = useState<View[]>([]);
   const [lyricsOpen, setLyricsOpen] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [loginTick, setLoginTick] = useState(0);
+
+  // Disable the default browser context menu inside the Tauri webview.
+  useEffect(() => {
+    const handler = (e: MouseEvent) => e.preventDefault();
+    document.addEventListener("contextmenu", handler);
+    return () => document.removeEventListener("contextmenu", handler);
+  }, []);
 
   function navigate(next: View) {
     setHistory((h) => [...h, view]);
@@ -61,12 +71,14 @@ export default function App() {
           active={view.kind === "home" ? "home" : view.kind === "placeholder" ? view.page : null}
           onNavigate={navigateRoot}
           onOpenPlaylist={(id) => navigate({ kind: "playlist", id })}
+          loginTick={loginTick}
         />
         <Box sx={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
           <TopBar
             onSearch={(q) => navigate({ kind: "search", query: q })}
             onBack={showBack ? goBack : undefined}
             onLoginClick={() => setLoginOpen(true)}
+            onSettingsClick={() => setSettingsOpen(true)}
           />
           <Box sx={{ flex: 1, minHeight: 0, bgcolor: "background.default" }}>
             {view.kind === "home" && (
@@ -80,7 +92,12 @@ export default function App() {
       </Box>
       <PlayerBar onOpenLyrics={() => setLyricsOpen(true)} />
       {lyricsOpen && <LyricsPage onClose={() => setLyricsOpen(false)} />}
-      <LoginDialog open={loginOpen} onClose={() => setLoginOpen(false)} />
+      <LoginDialog
+        open={loginOpen}
+        onClose={() => setLoginOpen(false)}
+        onLogin={() => setLoginTick((t) => t + 1)}
+      />
+      <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </Box>
   );
 }

@@ -8,6 +8,7 @@ import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import Tooltip from "@mui/material/Tooltip";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
+import ClearIcon from "@mui/icons-material/Clear";
 import AccountCircleOutlinedIcon from "@mui/icons-material/AccountCircleOutlined";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -19,14 +20,17 @@ interface TopBarProps {
   onSearch: (query: string) => void;
   onBack?: () => void;
   onLoginClick: () => void;
+  onSettingsClick: () => void;
 }
 
-export default function TopBar({ onSearch, onBack, onLoginClick }: TopBarProps) {
+export default function TopBar({ onSearch, onBack, onLoginClick, onSettingsClick }: TopBarProps) {
   const [value, setValue] = useState("");
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const profile = useAuth((s) => s.profile);
   const status = useAuth((s) => s.status);
   const logout = useAuth((s) => s.logout);
+
+  const showClear = value.length > 0;
 
   async function handleLogout() {
     setMenuAnchor(null);
@@ -71,12 +75,27 @@ export default function TopBar({ onSearch, onBack, onLoginClick }: TopBarProps) 
                 <SearchOutlinedIcon fontSize="small" />
               </InputAdornment>
             ),
+            endAdornment: showClear ? (
+              <InputAdornment position="end">
+                <IconButton
+                  size="small"
+                  onClick={() => {
+                    setValue("");
+                    onSearch("");
+                  }}
+                  aria-label="清空搜索"
+                  edge="end"
+                >
+                  <ClearIcon fontSize="small" />
+                </IconButton>
+              </InputAdornment>
+            ) : undefined,
             sx: { borderRadius: 999, bgcolor: "background.paper" },
           },
         }}
       />
       <Box sx={{ flex: 1 }} />
-      <IconButton aria-label="设置">
+      <IconButton aria-label="设置" onClick={onSettingsClick}>
         <SettingsOutlinedIcon />
       </IconButton>
       {status === "logged_in" && profile ? (

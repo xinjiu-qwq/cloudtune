@@ -1,12 +1,12 @@
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Skeleton from "@mui/material/Skeleton";
-import Alert from "@mui/material/Alert";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { searchSongs } from "../api/netease";
 import type { SongDetail } from "../api/types";
 import { usePlayer } from "../stores/playerStore";
 import { formatDuration } from "../data/mock";
+import ErrorFallback from "../components/ErrorFallback";
 
 interface SearchPageProps {
   /** Committed query; changes trigger a new search. */
@@ -20,9 +20,10 @@ export default function SearchPage({ query }: SearchPageProps) {
   const currentSongId = usePlayer((s) => s.queue[s.currentIndex]?.id);
   const toggle = usePlayer((s) => s.toggle);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     if (!query.trim()) {
       setSongs(null);
+      setError(null);
       return;
     }
     let cancelled = false;
@@ -36,6 +37,8 @@ export default function SearchPage({ query }: SearchPageProps) {
     };
   }, [query]);
 
+  useEffect(() => load(), [load]);
+
   return (
     <Box sx={{ p: 4, overflowY: "auto", height: "100%" }}>
       <Typography variant="h4" sx={{ mb: 0.5 }}>
@@ -45,7 +48,7 @@ export default function SearchPage({ query }: SearchPageProps) {
         {query ? `「${query}」的结果` : "在顶部输入关键词搜索歌曲"}
       </Typography>
 
-      {error && <Alert severity="error">{error}</Alert>}
+      {error && <ErrorFallback message={error} onRetry={load} />}
 
       {!query.trim() && (
         <Typography color="text.secondary" sx={{ mt: 8, textAlign: "center" }}>
@@ -95,7 +98,7 @@ export default function SearchPage({ query }: SearchPageProps) {
                   src={song.al.picUrl}
                   alt=""
                   loading="lazy"
-                  sx={{ width: 44, height: 44, borderRadius: 1.5, objectFit: "cover", bgcolor: "action.hover" }}
+                  sx={{ width: 44, height: 44, borderRadius: 1, objectFit: "cover", bgcolor: "action.hover" }}
                 />
                 <Box sx={{ minWidth: 0 }}>
                   <Typography variant="subtitle2" noWrap color={active ? "primary.main" : "text.primary"}>

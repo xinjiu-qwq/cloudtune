@@ -2,14 +2,14 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
 import Skeleton from "@mui/material/Skeleton";
-import Alert from "@mui/material/Alert";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import PauseIcon from "@mui/icons-material/Pause";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { fetchPlaylistDetail } from "../api/netease";
 import type { PlaylistDetail, SongDetail } from "../api/types";
 import { usePlayer } from "../stores/playerStore";
 import { formatDuration } from "../data/mock";
+import ErrorFallback from "../components/ErrorFallback";
 
 interface PlaylistPageProps {
   playlistId: number;
@@ -25,9 +25,10 @@ export default function PlaylistPage({ playlistId }: PlaylistPageProps) {
   const currentIndex = usePlayer((s) => s.currentIndex);
   const playSong = usePlayer((s) => s.playSong);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     let cancelled = false;
     setDetail(null);
+    setError(null);
     fetchPlaylistDetail(playlistId)
       .then((r) => !cancelled && setDetail(r))
       .catch((e: Error) => !cancelled && setError(e.message));
@@ -35,6 +36,8 @@ export default function PlaylistPage({ playlistId }: PlaylistPageProps) {
       cancelled = true;
     };
   }, [playlistId]);
+
+  useEffect(() => load(), [load]);
 
   function toggleRow(song: SongDetail) {
     const isCurrent = currentSong?.id === song.id;
@@ -65,7 +68,7 @@ export default function PlaylistPage({ playlistId }: PlaylistPageProps) {
               component="img"
               src={detail.coverImgUrl}
               alt={detail.name}
-              sx={{ width: 180, height: 180, borderRadius: 4, boxShadow: "0 12px 40px rgba(0,0,0,.5)", flexShrink: 0 }}
+              sx={{ width: 180, height: 180, borderRadius: 2, boxShadow: "0 12px 40px rgba(0,0,0,.5)", flexShrink: 0 }}
             />
             <Box sx={{ minWidth: 0, pb: 1 }}>
               <Typography variant="h4" sx={{ mb: 1, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
@@ -93,7 +96,7 @@ export default function PlaylistPage({ playlistId }: PlaylistPageProps) {
       )}
 
       <Box sx={{ p: 3, pt: 2.5 }}>
-        {error && <Alert severity="error">{error}</Alert>}
+        {error && <ErrorFallback message={error} onRetry={load} />}
         {!detail && !error && (
           <Box sx={{ display: "grid", gap: 1.5, mt: 24 }}>
             {Array.from({ length: 10 }).map((_, i) => (
@@ -125,7 +128,7 @@ export default function PlaylistPage({ playlistId }: PlaylistPageProps) {
                   <Typography variant="body2" sx={{ color: active ? "primary.main" : "text.secondary", fontVariantNumeric: "tabular-nums" }}>
                     {active ? "♪" : String(i + 1).padStart(2, "0")}
                   </Typography>
-                  <Box component="img" src={song.al.picUrl} alt="" loading="lazy" sx={{ width: 44, height: 44, borderRadius: 1.5, objectFit: "cover", bgcolor: "action.hover" }} />
+                  <Box component="img" src={song.al.picUrl} alt="" loading="lazy" sx={{ width: 44, height: 44, borderRadius: 1, objectFit: "cover", bgcolor: "action.hover" }} />
                   <Box sx={{ minWidth: 0 }}>
                     <Typography variant="subtitle2" noWrap color={active ? "primary.main" : "text.primary"}>
                       {song.name}

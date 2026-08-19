@@ -30,9 +30,11 @@ interface AppSidebarProps {
   active: NavKey | null;
   onNavigate: (key: NavKey) => void;
   onOpenPlaylist: (id: number) => void;
+  /** Bumps whenever a login occurs to force playlist refresh. */
+  loginTick?: number;
 }
 
-export default function AppSidebar({ active, onNavigate, onOpenPlaylist }: AppSidebarProps) {
+export default function AppSidebar({ active, onNavigate, onOpenPlaylist, loginTick = 0 }: AppSidebarProps) {
   const status = useAuth((s) => s.status);
   const profile = useAuth((s) => s.profile);
   const [playlists, setPlaylists] = useState<UserPlaylistItem[] | null>(null);
@@ -49,7 +51,7 @@ export default function AppSidebar({ active, onNavigate, onOpenPlaylist }: AppSi
     return () => {
       cancelled = true;
     };
-  }, [status, profile]);
+  }, [status, profile, loginTick]);
 
   return (
     <Box

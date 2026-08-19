@@ -1,13 +1,13 @@
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Skeleton from "@mui/material/Skeleton";
-import Alert from "@mui/material/Alert";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { fetchDailySongs, fetchPersonalized } from "../api/netease";
 import type { PersonalizedPlaylist, SongDetail } from "../api/types";
 import { usePlayer } from "../stores/playerStore";
 import { useAuth } from "../stores/authStore";
 import { formatDuration } from "../data/mock";
+import ErrorFallback from "../components/ErrorFallback";
 
 function formatPlayCount(n: number): string {
   if (n >= 100_000_000) return `${(n / 100_000_000).toFixed(1)} 亿`;
@@ -24,15 +24,11 @@ export default function HomePage({ onOpenPlaylist, onPlayPlaylist }: HomePagePro
   const [playlists, setPlaylists] = useState<PersonalizedPlaylist[] | null>(null);
   const [dailySongs, setDailySongs] = useState<SongDetail[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [playingId, setPlayingId] = useState<number | null>(null);
-  const playerLoading = usePlayer((s) => s.loading);
-  const authStatus = useAuth((s) => s.status);
-  const currentSongId = usePlayer((s) => s.queue[s.currentIndex]?.id);
-  const playSong = usePlayer((s) => s.playSong);
-  const toggle = usePlayer((s) => s.toggle);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     let cancelled = false;
+    setError(null);
+    setPlaylists(null);
     fetchPersonalized(12)
       .then((r) => !cancelled && setPlaylists(r))
       .catch((e: Error) => !cancelled && setError(e.message));
@@ -40,6 +36,14 @@ export default function HomePage({ onOpenPlaylist, onPlayPlaylist }: HomePagePro
       cancelled = true;
     };
   }, []);
+  const [playingId, setPlayingId] = useState<number | null>(null);
+  const playerLoading = usePlayer((s) => s.loading);
+  const authStatus = useAuth((s) => s.status);
+  const currentSongId = usePlayer((s) => s.queue[s.currentIndex]?.id);
+  const playSong = usePlayer((s) => s.playSong);
+  const toggle = usePlayer((s) => s.toggle);
+
+  useEffect(() => load(), [load]);
 
   // Daily picks require login.
   useEffect(() => {
@@ -72,12 +76,12 @@ export default function HomePage({ onOpenPlaylist, onPlayPlaylist }: HomePagePro
       </Typography>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          无法连接网易云 API 服务：{error}
-          <br />
-          请确认本地 API 已启动（cd vendor/api-enhanced &amp;&amp; node app.js），或通过 VITE_API_URL
-          指向你的服务地址。
-        </Alert>
+        <Box sx={{ mb: 3 }}>
+          <ErrorFallback
+            message="无法连接网易云 API 服务，请确认本地 API 已启动。"
+            onRetry={load}
+          />
+        </Box>
       )}
 
       {authStatus === "logged_in" && (
@@ -93,9 +97,9 @@ export default function HomePage({ onOpenPlaylist, onPlayPlaylist }: HomePagePro
             </Box>
           )}
           {dailySongs && dailySongs.length === 0 && (
-            <Alert severity="info" sx={{ mb: 5 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 5 }}>
               暂时无法获取每日推荐（可能需要 VIP 或接口限流）
-            </Alert>
+            </Typography>
           )}
           {dailySongs && dailySongs.length > 0 && (
             <Box sx={{ mb: 5, borderRadius: 4, overflow: "hidden", bgcolor: "background.paper" }}>
@@ -130,7 +134,7 @@ export default function HomePage({ onOpenPlaylist, onPlayPlaylist }: HomePagePro
                       src={song.al.picUrl}
                       alt=""
                       loading="lazy"
-                      sx={{ width: 44, height: 44, borderRadius: 1.5, objectFit: "cover", bgcolor: "action.hover" }}
+                      sx={{ width: 44, height: 44, borderRadius: 1, objectFit: "cover", bgcolor: "action.hover" }}
                     />
                     <Box sx={{ minWidth: 0 }}>
                       <Typography variant="subtitle2" noWrap color={active ? "primary.main" : "text.primary"}>
@@ -197,7 +201,7 @@ export default function HomePage({ onOpenPlaylist, onPlayPlaylist }: HomePagePro
                       width: "100%",
                       aspectRatio: "1",
                       objectFit: "cover",
-                      borderRadius: 4,
+                      borderRadius: 2,
                       display: "block",
                       bgcolor: "background.paper",
                     }}
