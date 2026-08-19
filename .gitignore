@@ -10,3 +10,6 @@ src-tauri/gen
 
 tmp/
 .lrc-test.cjs
+
+# Sidecar binaries (too large for GitHub, build locally)
+src-tauri/binaries/*.exe
