@@ -11,9 +11,11 @@
 
 - [x] M1 应用骨架（Tauri 2 + React + TS + MUI MD3）
 - [x] M2 接入网易云 API（api-enhanced，搜索 / 歌单 / 播放 / 歌词全链路）
-- [ ] M3 Apple Music 风格歌词页（动态取色背景、平滑滚动补间、翻译/罗马音行）
-- [ ] M4 二维码登录、个人歌单、每日推荐
-- [ ] M5 Windows 打包发布 + API 失效预案
+- [x] M3 Apple Music 风格歌词页（动态取色背景、平滑滚动补间、翻译/罗马音行）
+- [x] M4 二维码登录、个人歌单、每日推荐
+- [x] M5 Windows 打包发布 + API 失效预案
+
+macOS / Linux 版本将在 Windows 版稳定后跟进。
 
 ## 技术栈
 
@@ -45,7 +47,7 @@ API 地址可通过环境变量 `VITE_API_URL` 覆盖，指向你自己部署的
 
 ### API 失效预案
 
-社区 API 依赖对官方加密接口的逆向，**可能随官方升级随时失效**。出现大面积报错时：
+社区 API 依赖对官方加密接口的逆向，**可能随官方升级随时失效**。详见 [docs/API-TROUBLESHOOTING.md](docs/API-TROUBLESHOOTING.md)，快速恢复：
 
 1. `cd vendor/api-enhanced && git pull` 更新到上游最新修复；
 2. 查看上游 [Issues](https://github.com/NeteaseCloudMusicApiEnhanced/api-enhanced/issues) 确认已知问题；
@@ -54,7 +56,11 @@ API 地址可通过环境变量 `VITE_API_URL` 覆盖，指向你自己部署的
 ## 构建发布（Windows）
 
 ```bash
-npm run tauri build        # 产出 MSI/NSIS 安装包于 src-tauri/target/release/bundle/
+npm run tauri build -- --bundles msi,nsis
+# 产出：src-tauri/target/release/bundle/
+#   msi/CloudTune_0.1.0_x64_en-US.msi   (7.5 MB)
+#   nsis/CloudTune_0.1.0_x64-setup.exe  (6.7 MB)
 ```
 
-macOS / Linux 版本将在 Windows 版稳定后跟进。
+> 安装包目前不含内嵌 API 服务（M2 阶段采用本地 `npm run api` 直连方案），
+> 分发安装包需同时提供 API 部署指引，详见故障排查文档。
