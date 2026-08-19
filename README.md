@@ -1,6 +1,6 @@
 # CloudTune
 
-第三方网易云音乐桌面客户端 — Material Design 3 界面，Apple Music 风格歌词页。
+第三方网易云音乐桌面客户端 — Material You 界面，Apple Music 风格歌词页。
 
 > ⚠️ **免责声明**：本项目仅供个人学习与技术研究使用，严禁用于任何商业用途或大规模传播。
 > 所有音乐数据、封面、歌词的版权均归网易云音乐及其权利人所有。
@@ -9,11 +9,12 @@
 
 ## 开发状态
 
-- [x] M1 应用骨架（Tauri 2 + React + TS + MUI MD3）
+- [x] M1 应用骨架（Tauri 2 + React + TS + MUI Material You）
 - [x] M2 接入网易云 API（api-enhanced，搜索 / 歌单 / 播放 / 歌词全链路）
 - [x] M3 Apple Music 风格歌词页（动态取色背景、平滑滚动补间、翻译/罗马音行）
 - [x] M4 二维码登录、个人歌单、每日推荐
 - [x] M5 Windows 打包发布 + API 失效预案
+- [x] UI/UX 修复：登录刷新、设置、主题、歌词交互、播放列表等
 
 macOS / Linux 版本将在 Windows 版稳定后跟进。
 
@@ -26,9 +27,16 @@ Windows 安装包见 [Releases](https://github.com/xinjiu-qwq/cloudtune/releases
 | `CloudTune_1.0.0_x64-setup.exe` | NSIS 安装向导（推荐，约 41 MB） |
 | `CloudTune_1.0.0_x64_en-US.msi` | MSI 安装包（约 52 MB） |
 
+### v1.0.0 build 2 校验值
+
+```
+SHA256(CloudTune_1.0.0_x64-setup.exe) = 1e83017ca1a6ccb21db63b2834abe09a99e887e5ee0ba01811561ae1d54972f8
+SHA256(CloudTune_1.0.0_x64_en-US.msi) = 900a1309cea60e7707a4764ba70c175b136e92ded95c1a5f68032619d3fb76c3
+```
+
 ## 技术栈
 
-- **前端**：React 19 + TypeScript + Vite 7，MUI v7（Material Design 3 暗色主题），Zustand 状态管理
+- **前端**：React 19 + TypeScript + Vite 7，MUI v7（Material You / Material Design 3 主题），Zustand 状态管理
 - **桌面壳**：Tauri 2（Rust），Media Session API 支持系统媒体控制
 - **数据源**：[NeteaseCloudMusicApiEnhanced/api-enhanced](https://github.com/NeteaseCloudMusicApiEnhanced/api-enhanced) v4.40.1（git submodule，本地运行）
 
