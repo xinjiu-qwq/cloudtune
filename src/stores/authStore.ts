@@ -6,7 +6,7 @@ export type AuthStatus = "anonymous" | "logged_in";
 interface AuthState {
   status: AuthStatus;
   profile: UserProfile | null;
-  /** MUSIC_U cookie value; persisted in localStorage. */
+  /** Full `MUSIC_U=...` cookie string; persisted in localStorage. */
   cookie: string | null;
   setSession: (cookie: string, profile: UserProfile) => void;
   logout: () => void;
@@ -28,10 +28,9 @@ function readStored(): { cookie: string; profile: UserProfile } | null {
 }
 
 /**
- * Credentials strategy: api-enhanced returns the MUSIC_U cookie in the QR-check
- * response body. We persist it and send it as a `cookie=` query parameter on
- * every authenticated request, which is more reliable than depending on
- * cross-origin cookie jars inside a webview.
+ * Credentials strategy: api-enhanced returns the full cookie string (including
+ * MUSIC_U) in the QR-check response body. We persist it and send it as the
+ * `cookie=` query parameter on every authenticated request.
  */
 export const useAuth = create<AuthState>((set) => {
   const stored = readStored();

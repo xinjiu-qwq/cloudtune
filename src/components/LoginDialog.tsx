@@ -60,25 +60,38 @@ export default function LoginDialog({ open, onClose, onLogin }: LoginDialogProps
             setStage("expired");
           } else if (res.code === 803) {
             stopPolling();
-            // Prefer the MUSIC_U value from the returned cookie string.
-            const m = res.cookie?.match(/MUSIC_U=([^;]+)/);
-            if (!m) {
+            // The API returns the raw cookie string(s) on success. Extract the
+            // MUSIC_U pair so we can use it as the authenticated cookie param.
+            const cookie = res.cookie ?? "";
+            const m = cookie.match(/(MUSIC_U=[^;]+)/);
+            const musicU = m ? m[1] : null;
+            if (!musicU) {
               setStage("error");
               setErrorMsg("登录成功但未获取到凭据，请重试");
               return;
             }
-            const profile = await fetchLoginStatus();
-            if (!profile) {
+            // Persist the cookie first so subsequent authenticated requests carry it.
+            useAuth.setState({ cookie: musicU });
+            try {
+              const profile = await fetchLoginStatus();
+              if (!profile) {
+                setStage("error");
+                setErrorMsg("无法获取用户信息，请检查本地 API 服务是否正常");
+                return;
+              }
+              setSession(musicU, profile);
+              onLogin?.();
+              onClose();
+            } catch (e) {
               setStage("error");
-              setErrorMsg("无法获取用户信息，请重试");
-              return;
+              setErrorMsg(e instanceof Error ? e.message : "获取用户信息失败");
             }
-            setSession(m[1], profile);
-            onLogin?.();
-            onClose();
           }
-        } catch {
-          // Transient polling errors are ignored; next tick retries.
+        } catch (e) {
+          // Surface unexpected errors during polling so the user isn't left waiting.
+          setStage("error");
+          setErrorMsg(e instanceof Error ? e.message : "登录状态查询失败");
+          stopPolling();
         }
       }, 1500);
     } catch (e) {

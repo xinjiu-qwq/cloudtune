@@ -28,10 +28,10 @@ export class ApiError extends Error {
 }
 
 async function get<T>(path: string): Promise<T> {
-  // Attach the persisted MUSIC_U cookie for authenticated endpoints.
+  // Attach the persisted cookie string for authenticated endpoints.
   const cookie = useAuth.getState().cookie;
   const sep = path.includes("?") ? "&" : "?";
-  const url = cookie ? `${path}${sep}cookie=${encodeURIComponent(`MUSIC_U=${cookie}`)}` : path;
+  const url = cookie ? `${path}${sep}cookie=${encodeURIComponent(cookie)}` : path;
   const res = await fetch(`${BASE}${url}`, {
     // The API server is cross-origin; responses include CORS headers.
     credentials: "include",
