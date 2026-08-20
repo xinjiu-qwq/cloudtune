@@ -13,7 +13,10 @@ import LightModeOutlinedIcon from "@mui/icons-material/LightModeOutlined";
 import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
 import ComputerOutlinedIcon from "@mui/icons-material/ComputerOutlined";
 import GitHubIcon from "@mui/icons-material/GitHub";
+import StorageIcon from "@mui/icons-material/Storage";
+import TextField from "@mui/material/TextField";
 import { useTheme } from "../stores/themeStore";
+import { useApiConfig } from "../stores/apiConfigStore";
 
 interface SettingsDialogProps {
   open: boolean;
@@ -23,6 +26,8 @@ interface SettingsDialogProps {
 export default function SettingsDialog({ open, onClose }: SettingsDialogProps) {
   const mode = useTheme((s) => s.mode);
   const setMode = useTheme((s) => s.setMode);
+  const apiUrl = useApiConfig((s) => s.baseUrl);
+  const setApiUrl = useApiConfig((s) => s.setBaseUrl);
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
@@ -65,6 +70,28 @@ export default function SettingsDialog({ open, onClose }: SettingsDialogProps) {
               跟随系统
             </ToggleButton>
           </ToggleButtonGroup>
+        </Box>
+
+        <Divider />
+
+        <Box>
+          <Typography variant="subtitle2" sx={{ mb: 1.5 }}>
+            API 服务
+          </Typography>
+          <TextField
+            fullWidth
+            size="small"
+            label="API 地址"
+            placeholder="http://localhost:3000"
+            value={apiUrl}
+            onChange={(e) => setApiUrl(e.target.value)}
+            helperText="可留空使用默认值。若内置 API 无法使用，请手动运行 vendor/api-enhanced 下的 node app.js 并填入地址。"
+            InputProps={{
+              startAdornment: (
+                <StorageIcon fontSize="small" color="action" sx={{ mr: 1 }} />
+              ),
+            }}
+          />
         </Box>
 
         <Divider />

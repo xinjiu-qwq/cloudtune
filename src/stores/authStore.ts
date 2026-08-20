@@ -15,6 +15,30 @@ interface AuthState {
 
 const STORAGE_KEY = "cloudtune_music_u";
 
+/** Strip cookie attributes (Path, Max-Age, etc.) so only name=value pairs remain. */
+export function cleanCookieString(cookie: string): string {
+  const ignored = new Set([
+    "path",
+    "domain",
+    "max-age",
+    "expires",
+    "httponly",
+    "secure",
+    "samesite",
+    "partitioned",
+  ]);
+  return cookie
+    .split(";")
+    .map((part) => part.trim())
+    .filter((part) => {
+      const eq = part.indexOf("=");
+      if (eq <= 0) return false;
+      const name = part.slice(0, eq).trim().toLowerCase();
+      return !ignored.has(name);
+    })
+    .join("; ");
+}
+
 function readStored(): { cookie: string; profile: UserProfile } | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);

@@ -25,7 +25,7 @@ export default function ErrorFallback({ onRetry, message }: ErrorFallbackProps) 
         唔，出了点问题
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 360 }}>
-        {message ?? "刷新试试？"}
+        {message ?? "刷新试试？如果内置 API 未启动，可手动运行 vendor/api-enhanced 下的 node app.js，并在设置中指定 API 地址。"}
       </Typography>
       {onRetry && (
         <Button

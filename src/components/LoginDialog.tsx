@@ -6,9 +6,11 @@ import CircularProgress from "@mui/material/CircularProgress";
 import Alert from "@mui/material/Alert";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { checkQrStatus, createQrCode, fetchLoginStatus, fetchQrKey } from "../api/netease";
-import { useAuth } from "../stores/authStore";
+import { useAuth, cleanCookieString } from "../stores/authStore";
 
 type Stage = "loading" | "waiting" | "confirming" | "expired" | "error";
+
+type DebugLog = { code: number; cookie?: string; ts: number };
 
 interface LoginDialogProps {
   open: boolean;
@@ -24,6 +26,7 @@ export default function LoginDialog({ open, onClose, onLogin }: LoginDialogProps
   const [stage, setStage] = useState<Stage>("loading");
   const [qrImg, setQrImg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string>("");
+  const [logs, setLogs] = useState<DebugLog[]>([]);
   const keyRef = useRef<string | null>(null);
   const pollRef = useRef<number | null>(null);
   const setSession = useAuth((s) => s.setSession);
@@ -40,9 +43,12 @@ export default function LoginDialog({ open, onClose, onLogin }: LoginDialogProps
     setStage("loading");
     setQrImg(null);
     setErrorMsg("");
+    setLogs([]);
     try {
       const key = await fetchQrKey();
       keyRef.current = key;
+      // eslint-disable-next-line no-console
+      console.log("[CloudTune] QR key:", key);
       const img = await createQrCode(key);
       setQrImg(img);
       setStage("waiting");
@@ -51,6 +57,14 @@ export default function LoginDialog({ open, onClose, onLogin }: LoginDialogProps
         if (!keyRef.current) return;
         try {
           const res = await checkQrStatus(keyRef.current);
+          setLogs((prev) => [...prev.slice(-9), { code: res.code, cookie: res.cookie, ts: Date.now() }]);
+          // eslint-disable-next-line no-console
+          console.log("[CloudTune] QR status:", res.code, res.message);
+          // Accumulate the full cookie jar returned by each poll so the session
+          // stays consistent (NMTID from early polls + MUSIC_U on success).
+          if (res.cookie) {
+            useAuth.setState({ cookie: cleanCookieString(res.cookie) });
+          }
           if (res.code === 801) {
             setStage("waiting");
           } else if (res.code === 802) {
@@ -60,20 +74,21 @@ export default function LoginDialog({ open, onClose, onLogin }: LoginDialogProps
             setStage("expired");
           } else if (res.code === 803) {
             stopPolling();
-            // The API returns the raw cookie string(s) on success. Extract the
-            // MUSIC_U pair so we can use it as the authenticated cookie param.
-            const cookie = res.cookie ?? "";
-            const m = cookie.match(/(MUSIC_U=[^;]+)/);
+            // The cookie jar accumulated above now contains NMTID + MUSIC_U.
+            const fullCookie = useAuth.getState().cookie;
+            const m = fullCookie?.match(/(MUSIC_U=[^;]+)/);
             const musicU = m ? m[1] : null;
+            // eslint-disable-next-line no-console
+            console.log("[CloudTune] QR success, cookie present:", !!musicU);
             if (!musicU) {
               setStage("error");
               setErrorMsg("登录成功但未获取到凭据，请重试");
               return;
             }
-            // Persist the cookie first so subsequent authenticated requests carry it.
-            useAuth.setState({ cookie: musicU });
             try {
               const profile = await fetchLoginStatus();
+              // eslint-disable-next-line no-console
+              console.log("[CloudTune] login status profile:", profile);
               if (!profile) {
                 setStage("error");
                 setErrorMsg("无法获取用户信息，请检查本地 API 服务是否正常");
@@ -86,6 +101,11 @@ export default function LoginDialog({ open, onClose, onLogin }: LoginDialogProps
               setStage("error");
               setErrorMsg(e instanceof Error ? e.message : "获取用户信息失败");
             }
+          } else {
+            // Unknown QR status code (e.g. 400 invalid key, -460 cheating, etc.)
+            stopPolling();
+            setStage("error");
+            setErrorMsg(res.message ?? `二维码状态异常 (code ${res.code})`);
           }
         } catch (e) {
           // Surface unexpected errors during polling so the user isn't left waiting.
@@ -157,6 +177,23 @@ export default function LoginDialog({ open, onClose, onLogin }: LoginDialogProps
           <Alert severity="error" sx={{ mt: 2, textAlign: "left" }}>
             {errorMsg}
           </Alert>
+        )}
+        {logs.length > 0 && (
+          <Box
+            component="pre"
+            sx={{
+              mt: 2,
+              p: 1.5,
+              bgcolor: "action.hover",
+              borderRadius: 1,
+              fontSize: 10,
+              textAlign: "left",
+              overflow: "auto",
+              maxHeight: 120,
+            }}
+          >
+            {logs.map((l) => `code=${l.code} ${l.cookie ? "cookie=" + l.cookie.slice(0, 40) + "..." : ""}`.trim()).join("\n")}
+          </Box>
         )}
         <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 2 }}>
           登录仅用于获取你的歌单与个性化推荐，凭据保存在本地。

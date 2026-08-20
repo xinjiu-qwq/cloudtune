@@ -12,14 +12,15 @@ import type {
   UserProfile,
   UserPlaylistItem,
 } from "./authTypes";
-import { useAuth } from "../stores/authStore";
+import { useAuth, cleanCookieString } from "../stores/authStore";
+import { getApiBase } from "../stores/apiConfigStore";
 
 /**
- * Client for the embedded NeteaseCloudMusicApi-enhanced server.
- * Base URL is overridable via VITE_API_URL so users can point at their own
- * deployment if the bundled sidecar is unavailable or broken.
+ * Client for the NeteaseCloudMusicApi-enhanced server.
+ * Base URL can be overridden via VITE_API_URL at build time, or via the
+ * in-app settings at runtime, so users can point at their own deployment
+ * (e.g. a local `node app.js`) if the bundled sidecar is unavailable.
  */
-const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:3000";
 
 export class ApiError extends Error {
   constructor(message: string, public readonly code?: number) {
@@ -28,11 +29,14 @@ export class ApiError extends Error {
 }
 
 async function get<T>(path: string): Promise<T> {
+  // Re-resolve base URL so runtime setting changes are picked up.
+  const base = getApiBase();
   // Attach the persisted cookie string for authenticated endpoints.
-  const cookie = useAuth.getState().cookie;
+  const rawCookie = useAuth.getState().cookie;
+  const cookie = rawCookie ? cleanCookieString(rawCookie) : null;
   const sep = path.includes("?") ? "&" : "?";
   const url = cookie ? `${path}${sep}cookie=${encodeURIComponent(cookie)}` : path;
-  const res = await fetch(`${BASE}${url}`, {
+  const res = await fetch(`${base}${url}`, {
     // The API server is cross-origin; responses include CORS headers.
     credentials: "include",
   });
